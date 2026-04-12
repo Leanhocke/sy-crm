@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Nutzer ──────────────────────────────────────────────────────────────────
+model User {
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  password            String
+  role                Role      @default(AGENT)
+  isActive            Boolean   @default(true)
+  hasSeenOnboarding   Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+
+  calls               Call[]
+  sessions            Session[]
+}
+
+enum Role {
+  ADMIN
+  AGENT
+}
+
+// ── Leads ───────────────────────────────────────────────────────────────────
+model Lead {
+  id            String      @id @default(cuid())
+  name          String
+  phone         String      @unique  // Verhindert Duplikate
+  company       String?
+  industry      String?
+  city          String?     // Stadt des Unternehmens
+  website       String?     // Website-URL — vor dem Anruf besuchen!
+  email         String?
+  status        LeadStatus  @default(PENDING)
+  notes         String?     // Interne Notizen (kumulativ)
+  followUpAt    DateTime?   // Datum für geplanten Rückruf
+  lastCalledAt  DateTime?
+  callCount     Int         @default(0)
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  calls         Call[]
+}
+
+enum LeadStatus {
+  PENDING        // Offen — noch nicht angerufen
+  NOT_REACHED    // Nicht erreicht — nochmal anrufen
+  NO_INTEREST    // Kein Interesse
+  INTERESTED     // Interessiert
+  FOLLOW_UP      // Rückruf vereinbart
+  CLOSED         // Abgeschlossen / Kunde
+}
+
+// ── Anrufe ──────────────────────────────────────────────────────────────────
+model Call {
+  id          String       @id @default(cuid())
+  leadId      String
+  lead        Lead         @relation(fields: [leadId], references: [id])
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  sessionId   String?
+  session     Session?     @relation(fields: [sessionId], references: [id])
+  startedAt   DateTime     @default(now())
+  endedAt     DateTime?
+  durationSec Int?
+  outcome     CallOutcome?
+  notes       String?      // Notizen während dem Gespräch
+  emailDraft  String?      // E-Mail Entwurf der während dem Gespräch geschrieben wurde
+  createdAt   DateTime     @default(now())
+}
+
+enum CallOutcome {
+  NOT_REACHED   // Nicht erreicht
+  NO_INTEREST   // Kein Interesse
+  INTERESTED    // Interessiert
+  FOLLOW_UP     // Rückruf vereinbart
+  CLOSED        // Abgeschlossen
+  VOICEMAIL     // Mailbox
+  WRONG_NUMBER  // Falsche Nummer
+}
+
+// ── Sessions (Arbeitssitzungen) ─────────────────────────────────────────────
+model Session {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  totalCalls  Int       @default(0)
+  notes       String?
+  calls       Call[]
+  createdAt   DateTime  @default(now())
+}
+
+// ── Import-Batches ──────────────────────────────────────────────────────────
+model ImportBatch {
+  id             String    @id @default(cuid())
+  filename       String
+  importedBy     String    // User-ID
+  totalRows      Int
+  importedCount  Int
+  duplicateCount Int       @default(0)
+  createdAt      DateTime  @default(now())
+  leads          Lead[]
+}
