@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react"
 import Sidebar from "@/components/Sidebar"
 import StatusBadge from "@/components/StatusBadge"
 import Link from "next/link"
-import { Search, Upload, Phone, SlidersHorizontal } from "lucide-react"
+import { Search, Upload, Phone, SlidersHorizontal, Globe } from "lucide-react"
 
 interface Lead {
   id: string
@@ -147,6 +147,7 @@ export default function LeadsPage() {
                   <th>Branche</th>
                   <th>Status</th>
                   <th>Anrufe</th>
+                  <th>Website</th>
                   <th></th>
                 </tr>
               </thead>
@@ -167,6 +168,31 @@ export default function LeadsPage() {
                     <td style={{ color: "var(--fg-muted)", fontSize: "0.82rem" }}>{lead.industry ?? "—"}</td>
                     <td><StatusBadge status={lead.status} /></td>
                     <td style={{ color: "var(--fg-faint)", fontSize: "0.82rem" }}>{lead._count.calls}×</td>
+                    <td>
+                      {lead.website ? (
+                        <a
+                          href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={lead.website}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: "0.3rem",
+                            padding: "0.3rem 0.8rem",
+                            fontSize: "0.7rem", fontWeight: 500, letterSpacing: "0.06em",
+                            textTransform: "uppercase", textDecoration: "none",
+                            color: "var(--fg)", border: "1px solid var(--border)",
+                            transition: "all 0.15s ease",
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "var(--fg)"; e.currentTarget.style.color = "var(--bg)" }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--fg)" }}
+                        >
+                          <Globe size={11} />
+                          Website
+                        </a>
+                      ) : (
+                        <span style={{ color: "var(--fg-faint)", fontSize: "0.82rem" }}>—</span>
+                      )}
+                    </td>
                     <td>
                       <Link
                         href={`/call/${lead.id}`}
