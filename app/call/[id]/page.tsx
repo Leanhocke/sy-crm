@@ -9,6 +9,7 @@ import Sidebar from "@/components/Sidebar"
 import StatusBadge from "@/components/StatusBadge"
 import Link from "next/link"
 import { ArrowLeft, Phone, PhoneOff, PhoneCall, Clock, ChevronRight, ExternalLink } from "lucide-react"
+import { BRANCHENZEITEN, bewerteBranchen, formatZeit } from "@/lib/branchenzeiten"
 
 interface Call {
   id: string
@@ -24,6 +25,7 @@ interface Lead {
   phone: string
   company: string | null
   industry: string | null
+  branchengruppe: string | null
   city: string | null
   website: string | null
   email: string | null
@@ -249,6 +251,43 @@ export default function CallPage() {
                   {lead.email}
                 </p>
               )}
+
+              {/* Branchenzeiten-Hinweis */}
+              {lead.branchengruppe && BRANCHENZEITEN[lead.branchengruppe] && (() => {
+                const bewertungen = bewerteBranchen()
+                const b = bewertungen.find(x => x.gruppe === lead.branchengruppe)
+                const info = BRANCHENZEITEN[lead.branchengruppe]
+                const statusColor =
+                  b?.status === "ideal"   ? { bg: "#f0fdf4", border: "#bbf7d0", text: "#166534", dot: "#16a34a" } :
+                  b?.status === "okay"    ? { bg: "#fffbeb", border: "#fde68a", text: "#92400e", dot: "#d97706" } :
+                                           { bg: "#f5f5f5", border: "var(--border)", text: "var(--fg-muted)", dot: "#aaa" }
+                return (
+                  <div style={{ marginTop: "1rem", padding: "0.75rem 1rem", background: statusColor.bg, border: `1px solid ${statusColor.border}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor.dot, display: "inline-block", flexShrink: 0 }} />
+                      <p style={{ fontSize: "0.72rem", fontWeight: 500, color: statusColor.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        {lead.branchengruppe} ·{" "}
+                        {b?.status === "ideal" ? "Jetzt ist ideal zum Anrufen" :
+                         b?.status === "okay"  ? "Bald optimales Zeitfenster" :
+                                                 "Aktuell ungünstiger Zeitpunkt"}
+                      </p>
+                    </div>
+                    <p style={{ fontSize: "0.78rem", color: statusColor.text, marginLeft: "1.1rem" }}>
+                      {info.zeiten.map((z, i) => (
+                        <span key={i}>{i > 0 ? " · " : ""}{formatZeit(z.vonH, z.vonM)}–{formatZeit(z.bisH, z.bisM)}</span>
+                      ))}
+                    </p>
+                    <p style={{ fontSize: "0.72rem", color: statusColor.text, marginLeft: "1.1rem", marginTop: "0.2rem", opacity: 0.8 }}>
+                      {info.tipp}
+                    </p>
+                    {b?.status !== "ideal" && b?.naechstesFenster && (
+                      <p style={{ fontSize: "0.72rem", color: statusColor.text, marginLeft: "1.1rem", marginTop: "0.2rem" }}>
+                        Nächstes Fenster: {formatZeit(b.naechstesFenster.vonH, b.naechstesFenster.vonM)} Uhr
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             <div style={{ textAlign: "right" }}>

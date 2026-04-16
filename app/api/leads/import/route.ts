@@ -8,15 +8,25 @@ function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-\(\)\.\/]/g, "").trim()
 }
 
-// POST /api/leads/import — Excel-Daten importieren
+// POST /api/leads/import — Excel-Daten importieren (unterstützt Chunked-Import via batchId)
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 })
 
   const body = await req.json()
-  const { rows, filename } = body as {
-    rows: { name?: string; phone?: string; company?: string; industry?: string; city?: string; website?: string }[]
+  const { rows, filename, batchId: existingBatchId, totalRows: batchTotalRows } = body as {
+    rows: {
+      name?: string
+      phone?: string
+      company?: string
+      industry?: string
+      branchengruppe?: string
+      city?: string
+      website?: string
+    }[]
     filename: string
+    batchId?: string
+    totalRows?: number
   }
 
   if (!rows || !Array.isArray(rows) || rows.length === 0) {
@@ -27,16 +37,22 @@ export async function POST(req: NextRequest) {
   let duplicateCount = 0
   const errors: string[] = []
 
-  // Import-Batch anlegen
-  const batch = await prisma.importBatch.create({
-    data: {
-      filename,
-      importedBy:    session.user.id,
-      totalRows:     rows.length,
-      importedCount: 0,
-      duplicateCount: 0,
-    },
-  })
+  // Erster Chunk → neuen Batch anlegen; Folge-Chunks → bestehenden Batch weiterverwenden
+  let batchId: string
+  if (existingBatchId) {
+    batchId = existingBatchId
+  } else {
+    const batch = await prisma.importBatch.create({
+      data: {
+        filename,
+        importedBy:    session.user.id,
+        totalRows:     batchTotalRows ?? rows.length,
+        importedCount: 0,
+        duplicateCount: 0,
+      },
+    })
+    batchId = batch.id
+  }
 
   for (const row of rows) {
     if (!row.phone || !row.name) continue
@@ -51,13 +67,14 @@ export async function POST(req: NextRequest) {
 
       await prisma.lead.create({
         data: {
-          name:         String(row.name).trim(),
+          name:           String(row.name).trim(),
           phone,
-          company:      row.company  ? String(row.company).trim()  : null,
-          industry:     row.industry ? String(row.industry).trim() : null,
-          city:         row.city     ? String(row.city).trim()     : null,
+          company:        row.company        ? String(row.company).trim()        : null,
+          industry:       row.industry       ? String(row.industry).trim()       : null,
+          branchengruppe: row.branchengruppe ? String(row.branchengruppe).trim() : null,
+          city:           row.city           ? String(row.city).trim()           : null,
           website,
-          importBatchId: batch.id,
+          importBatchId:  batchId,
         },
       })
       importedCount++
@@ -71,11 +88,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Batch-Statistiken aktualisieren
+  // Batch-Statistiken kumulativ aktualisieren
   await prisma.importBatch.update({
-    where: { id: batch.id },
-    data:  { importedCount, duplicateCount },
+    where: { id: batchId },
+    data:  {
+      importedCount:  { increment: importedCount },
+      duplicateCount: { increment: duplicateCount },
+    },
   })
 
-  return NextResponse.json({ importedCount, duplicateCount, errors })
+  return NextResponse.json({ batchId, importedCount, duplicateCount, errors })
 }
