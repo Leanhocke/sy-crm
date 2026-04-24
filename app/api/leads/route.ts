@@ -9,11 +9,21 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const status   = searchParams.get("status")
-  const industry = searchParams.get("industry")
-  const search   = searchParams.get("search")
+  const status      = searchParams.get("status")
+  const industry    = searchParams.get("industry")
+  const search      = searchParams.get("search")
+  const called      = searchParams.get("called")      // "true" | "false"
+  const followUpMail = searchParams.get("followUpMail") // "true"
 
   const where: Record<string, unknown> = {}
+
+  if (followUpMail === "true") {
+    where.needsFollowUpMail = true
+  } else if (called === "false") {
+    where.callCount = 0
+  } else if (called === "true") {
+    where.callCount = { gt: 0 }
+  }
 
   if (status && status !== "ALL") {
     where.status = status

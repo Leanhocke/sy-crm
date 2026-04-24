@@ -12,6 +12,7 @@ interface Session {
   startedAt: string
   endedAt: string | null
   totalCalls: number
+  branche: string | null
   calls: { outcome: string }[]
 }
 
@@ -41,6 +42,8 @@ export default function SessionsPage() {
   const [activeSession,  setActiveSession]  = useState<Session | null>(null)
   const [loading,        setLoading]        = useState(true)
   const [actionLoading,  setActionLoading]  = useState(false)
+  const [branchen,       setBranchen]       = useState<string[]>([])
+  const [selectedBranche, setSelectedBranche] = useState<string>("")
 
   const loadSessions = useCallback(async () => {
     const res = await fetch("/api/sessions")
@@ -54,9 +57,17 @@ export default function SessionsPage() {
 
   useEffect(() => { loadSessions() }, [loadSessions])
 
+  useEffect(() => {
+    fetch("/api/leads/branchen").then(r => r.json()).then(setBranchen).catch(() => {})
+  }, [])
+
   async function startSession() {
     setActionLoading(true)
-    await fetch("/api/sessions", { method: "POST" })
+    await fetch("/api/sessions", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ branche: selectedBranche || null }),
+    })
     await loadSessions()
     setActionLoading(false)
   }
@@ -93,7 +104,7 @@ export default function SessionsPage() {
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#166534", display: "inline-block" }} />
                 <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>Session aktiv</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, auto)", gap: "2rem", marginBottom: "1.5rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, auto))", gap: "2rem", marginBottom: "1.5rem" }}>
                 <div>
                   <p className="label">Gestartet</p>
                   <p style={{ fontSize: "1rem", fontWeight: 300, marginTop: "0.25rem" }}>
@@ -112,6 +123,14 @@ export default function SessionsPage() {
                     {activeSession.totalCalls}
                   </p>
                 </div>
+                {activeSession.branche && (
+                  <div>
+                    <p className="label">Branche</p>
+                    <p style={{ fontSize: "1rem", fontWeight: 300, marginTop: "0.25rem" }}>
+                      {activeSession.branche}
+                    </p>
+                  </div>
+                )}
               </div>
               <button className="btn btn-outline" onClick={stopSession} disabled={actionLoading} style={{ gap: "0.5rem" }}>
                 <Square size={13} />
@@ -120,10 +139,36 @@ export default function SessionsPage() {
             </div>
           ) : (
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", color: "var(--fg-faint)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem", color: "var(--fg-faint)" }}>
                 <Clock size={14} strokeWidth={1.5} />
                 <span style={{ fontSize: "0.82rem" }}>Keine aktive Session</span>
               </div>
+
+              {/* Branchen-Auswahl */}
+              <div style={{ marginBottom: "1.25rem" }}>
+                <p className="label" style={{ marginBottom: "0.5rem" }}>Welche Branche rufst du an?</p>
+                {branchen.length > 0 ? (
+                  <select
+                    className="input"
+                    style={{ maxWidth: "320px" }}
+                    value={selectedBranche}
+                    onChange={e => setSelectedBranche(e.target.value)}
+                  >
+                    <option value="">— Alle Branchen —</option>
+                    {branchen.map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p style={{ fontSize: "0.78rem", color: "var(--fg-faint)" }}>Keine Branchengruppen in den Leads hinterlegt.</p>
+                )}
+                {selectedBranche && (
+                  <p style={{ fontSize: "0.72rem", color: "var(--fg-muted)", marginTop: "0.4rem" }}>
+                    Nur Leads der Branche <strong>{selectedBranche}</strong> werden angezeigt.
+                  </p>
+                )}
+              </div>
+
               <button className="btn btn-primary" onClick={startSession} disabled={actionLoading} style={{ gap: "0.5rem" }}>
                 <Play size={13} />
                 {actionLoading ? "..." : "Session starten"}
@@ -160,6 +205,7 @@ export default function SessionsPage() {
                         {new Date(s.startedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} –{" "}
                         {s.endedAt ? new Date(s.endedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "?"} Uhr
                         {" · "}{formatDuration(s.startedAt, s.endedAt)}
+                        {s.branche && <> · <strong>{s.branche}</strong></>}
                       </p>
                     </div>
                     <div style={{ textAlign: "right" }}>

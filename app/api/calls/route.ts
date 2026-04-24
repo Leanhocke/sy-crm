@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 })
 
   const body = await req.json()
-  const { leadId, sessionId, startedAt, durationSec, outcome, notes, emailDraft, followUpAt } = body
+  const { leadId, sessionId, startedAt, durationSec, outcome, notes, emailDraft, followUpAt, needsFollowUpMail } = body
 
   if (!leadId || !outcome) {
     return NextResponse.json({ error: "leadId und outcome sind erforderlich" }, { status: 400 })
@@ -34,9 +34,10 @@ export async function POST(req: NextRequest) {
   await prisma.lead.update({
     where: { id: leadId },
     data: {
-      status:      outcome, // Status = Ergebnis des letzten Anrufs
-      lastCalledAt: new Date(),
-      callCount:   { increment: 1 },
+      status:           outcome,
+      lastCalledAt:     new Date(),
+      callCount:        { increment: 1 },
+      needsFollowUpMail: needsFollowUpMail === true,
       ...(followUpAt && { followUpAt: new Date(followUpAt) }),
     },
   })
@@ -49,11 +50,22 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // Nächsten offenen Lead zurückgeben
+  // Branche der aktuellen Session ermitteln (für gefilterten nächsten Lead)
+  let sessionBranche: string | null = null
+  if (sessionId) {
+    const activeSession = await prisma.session.findUnique({
+      where:  { id: sessionId },
+      select: { branche: true },
+    })
+    sessionBranche = activeSession?.branche ?? null
+  }
+
+  // Nächsten offenen Lead zurückgeben (gefiltert nach Branche wenn gesetzt)
   const nextLead = await prisma.lead.findFirst({
     where: {
       status: { in: ["PENDING", "NOT_REACHED"] },
       id:     { not: leadId },
+      ...(sessionBranche && { branchengruppe: sessionBranche }),
     },
     orderBy: [
       { followUpAt: "asc" },

@@ -64,7 +64,8 @@ export default function CallPage() {
   const [emailDraft,  setEmailDraft]  = useState("")
   const [outcome,     setOutcome]     = useState("")
   const [followUpAt,  setFollowUpAt]  = useState("")
-  const [saving,      setSaving]      = useState(false)
+  const [saving,           setSaving]           = useState(false)
+  const [needsFollowUpMail, setNeedsFollowUpMail] = useState(false)
   const [activeSession, setActiveSession] = useState<string | null>(null)
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -121,14 +122,15 @@ export default function CallPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        leadId:     id,
-        sessionId:  activeSession,
-        startedAt:  startedAt?.toISOString(),
-        durationSec: duration,
+        leadId:            id,
+        sessionId:         activeSession,
+        startedAt:         startedAt?.toISOString(),
+        durationSec:       duration,
         outcome,
-        notes:      notes || null,
-        emailDraft: emailDraft || null,
-        followUpAt: followUpAt || null,
+        notes:             notes || null,
+        emailDraft:        emailDraft || null,
+        followUpAt:        followUpAt || null,
+        needsFollowUpMail,
       }),
     })
 
@@ -343,6 +345,41 @@ export default function CallPage() {
               onChange={e => setEmailDraft(e.target.value)}
             />
           </div>
+        </div>
+
+        {/* Follow-up Mail */}
+        <div style={{ marginBottom: "1.5rem" }}>
+          <button
+            onClick={() => setNeedsFollowUpMail(v => !v)}
+            style={{
+              display:       "inline-flex",
+              alignItems:    "center",
+              gap:           "0.6rem",
+              padding:       "0.65rem 1.1rem",
+              border:        `1px solid ${needsFollowUpMail ? "var(--fg)" : "var(--border)"}`,
+              background:    needsFollowUpMail ? "var(--fg)" : "transparent",
+              color:         needsFollowUpMail ? "var(--bg)" : "var(--fg-muted)",
+              fontSize:      "0.75rem",
+              fontWeight:    500,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              cursor:        "pointer",
+              transition:    "all 0.15s ease",
+            }}
+          >
+            <span style={{
+              width: 14, height: 14, border: `1.5px solid ${needsFollowUpMail ? "var(--bg)" : "var(--border)"}`,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              {needsFollowUpMail && <span style={{ width: 8, height: 8, background: "var(--bg)", display: "block" }} />}
+            </span>
+            Follow-up Mail notwendig
+          </button>
+          {needsFollowUpMail && (
+            <p style={{ fontSize: "0.72rem", color: "var(--fg-muted)", marginTop: "0.4rem" }}>
+              Dieser Lead wird zur Follow-up Mail Liste hinzugefügt.
+            </p>
+          )}
         </div>
 
         {/* Ergebnis-Buttons */}

@@ -27,9 +27,12 @@ export async function GET(_req: NextRequest) {
 }
 
 // POST /api/sessions — neue Session starten
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 })
+
+  const body = await req.json().catch(() => ({}))
+  const branche: string | null = body.branche ?? null
 
   // Laufende Session zuerst beenden
   await prisma.session.updateMany({
@@ -38,8 +41,13 @@ export async function POST(_req: NextRequest) {
   })
 
   const newSession = await prisma.session.create({
-    data: { userId: session.user.id },
+    data: { userId: session.user.id, branche },
   })
 
   return NextResponse.json(newSession, { status: 201 })
+}
+
+// GET /api/sessions/branchen — verfügbare Branchen aus Leads
+export async function HEAD(_req: NextRequest) {
+  return NextResponse.json({}, { status: 200 })
 }

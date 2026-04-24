@@ -43,10 +43,11 @@ model Lead {
   followUpAt    DateTime?   // Datum für geplanten Rückruf
   lastCalledAt  DateTime?
   callCount     Int         @default(0)
-  importBatchId String?
-  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  importBatchId    String?
+  importBatch      ImportBatch? @relation(fields: [importBatchId], references: [id])
+  needsFollowUpMail Boolean     @default(false) // Follow-up Mail nach Anruf notwendig
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   calls         Call[]
 }
@@ -97,6 +98,7 @@ model Session {
   endedAt     DateTime?
   totalCalls  Int       @default(0)
   notes       String?
+  branche     String?   // Gefilterte Branche für diese Session
   calls       Call[]
   createdAt   DateTime  @default(now())
 }
